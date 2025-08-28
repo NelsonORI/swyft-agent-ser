@@ -6,7 +6,6 @@ from config import Config
 # Import routes
 from routes.mpesa_routes import mpesa_bp
 
-
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -21,6 +20,9 @@ def create_app():
 
     return app
 
+# The line below is the fix.
+# It creates the 'app' variable that Gunicorn looks for.
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     app.run(debug=True)
