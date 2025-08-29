@@ -35,8 +35,8 @@ def save_integrations():
     access_token = get_access_token(mpesa_consumer_key, mpesa_consumer_secret)
 
     if access_token:
-        validation_url ="https://mydomain.com/validation"
-        confirmation_url = "https://mydomain.com/confirmation"
+        validation_url ="https://swyft-agent-ser.onrender.com/api/c2b/validation"
+        confirmation_url = "https://swyft-agent-ser.onrender.com/api/c2b/confirmation"
 
         register_result = register_mpesa_urls(access_token, mpesa_shortcode, validation_url, confirmation_url)
 
@@ -108,7 +108,7 @@ def c2b_confirmation():
     transaction_id = mpesa_data.get('TransID')
     transaction_time = mpesa_data.get('TransTime')
     transacted_amount = mpesa_data.get('TransAmount')
-    shortcode = mpesa_data.get('BillRefNumber')
+    shortcode = mpesa_data.get('BusinessShortCode')
     payer_phone_number = mpesa_data.get('MSISDN')
     
     #use shortcode to find the corresponding agents user_id
@@ -156,7 +156,7 @@ def c2b_validation():
 
     # 2. Extract key details for validation
     transacted_amount = mpesa_data.get('TransAmount')
-    shortcode = mpesa_data.get('BillRefNumber')
+    shortcode = mpesa_data.get('BusinessShortCode')
     payer_phone_number = mpesa_data.get('MSISDN')
 
     agent_integration = MpesaIntegration.query.filter_by(shortcode=shortcode).first()
@@ -167,7 +167,7 @@ def c2b_validation():
             "ResultDesc":"The provided account number (Paybill) is not registered with our system."
         }), 200
 
-    print(f"Validation successful for transaction to account {account_number}.")
+    print(f"Validation successful for transaction to account {shortcode}.")
     return jsonify({
         "ResultCode": "0",
         "ResultDesc": "Accepted"

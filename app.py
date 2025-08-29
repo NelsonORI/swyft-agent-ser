@@ -16,7 +16,7 @@ def create_app():
     cors.init_app(app)
 
     # Register blueprints
-    app.register_blueprint(mpesa_bp, url_prefix="/api/mpesa")
+    app.register_blueprint(mpesa_bp, url_prefix="/api/")
 
     return app
 
