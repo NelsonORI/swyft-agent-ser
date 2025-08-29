@@ -40,7 +40,7 @@ def save_integrations():
 
         register_result = register_mpesa_urls(access_token, mpesa_shortcode, validation_url, confirmation_url)
 
-        if register_result and register_result.get('ResponseCode') == '0':
+        if register_result and register_result.get('ResponseCode') == '00000000':
             existing_integration = MpesaIntegration.query.filter_by(user_id=user_id).first()
             if existing_integration:
                 existing_integration.shortcode = mpesa_shortcode
@@ -49,6 +49,18 @@ def save_integrations():
                 existing_integration.encrypted_passkey = cipher_suite.encrypt(mpesa_passkey.encode())
                 existing_integration.is_registered = True
                 existing_integration.registration_response = register_result
+                db.session.commit()
+
+                return jsonify({
+                    "mpesa": {
+                        "enabled": mpesa_enabled,
+                        "consumer_key": mpesa_consumer_key,
+                        "consumer_secret": mpesa_consumer_secret,
+                        "shortcode": mpesa_shortcode,
+                        "passkey": mpesa_passkey,
+                        "is_registered": True, # Explicitly set to True on success
+                    }
+                }), 200
             # Store credentials and registration status in your database
             else:
                 integration = MpesaIntegration(
@@ -62,7 +74,19 @@ def save_integrations():
                 integration.registration_response = register_result
                 db.session.add(integration)
                 db.session.commit()
-            return jsonify({'message': 'M-Pesa integration successful', 'status': 'success'}), 200
+            return jsonify(
+                {
+                'message': 'M-Pesa integration successful', 
+                'status': 'success',
+                "mpesa": {
+                    "enabled": mpesa_enabled,
+                    "consumer_key": mpesa_consumer_key,
+                    "consumer_secret": mpesa_consumer_secret,
+                    "shortcode": mpesa_shortcode,
+                    "passkey": mpesa_passkey,
+                    "is_registered": True,
+                }
+                }), 200
         else:
             return jsonify({'message': 'Failed to register M-Pesa URLs', 'status': 'error'}), 500
     else:
@@ -172,3 +196,44 @@ def c2b_validation():
         "ResultCode": "0",
         "ResultDesc": "Accepted"
     }), 200
+
+@mpesa_bp.route("/get-integration-settings", methods=["GET"])
+def get_integrations():
+    # A user ID must be passed as a query parameter
+    user_id = request.args.get("user_id")
+    if not user_id:
+        return jsonify({"message": "User ID is required"}), 400
+
+    try:
+        existing_integration = MpesaIntegration.query.filter_by(user_id=user_id).first()
+        if existing_integration:
+            # Decrypt sensitive data before sending
+            consumer_key = cipher_suite.decrypt(existing_integration.encrypted_consumer_key).decode()
+            consumer_secret = cipher_suite.decrypt(existing_integration.encrypted_consumer_secret).decode()
+            passkey = cipher_suite.decrypt(existing_integration.encrypted_passkey).decode()
+
+            return jsonify({
+                "mpesa": {
+                    "enabled": True, # Assume if an integration exists, it's enabled
+                    "consumer_key": consumer_key,
+                    "consumer_secret": consumer_secret,
+                    "shortcode": existing_integration.shortcode,
+                    "passkey": passkey,
+                    "is_registered": existing_integration.is_registered,
+                }
+            }), 200
+        else:
+            # Return a default, empty state if no integration exists
+            return jsonify({
+                "mpesa": {
+                    "enabled": False,
+                    "consumer_key": "",
+                    "consumer_secret": "",
+                    "shortcode": "",
+                    "passkey": "",
+                    "is_registered": False,
+                }
+            }), 200
+    except Exception as e:
+        print(f"Error fetching integration settings: {e}")
+        return jsonify({"message": "Failed to fetch settings", "status": "error"}), 500
